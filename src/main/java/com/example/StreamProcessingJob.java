@@ -13,6 +13,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.ExecutionConfig;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.HashMap;
 
 public class StreamProcessingJob {
     public static void main(String[] args) throws Exception {
@@ -65,8 +66,25 @@ public class StreamProcessingJob {
             .keyBy(LineItem::getLShipmode)
             .process(new AggregationProcessFunction());
 
+        // 添加一个全局统计的 ProcessFunction
+        DataStream<Map<String, Double>> totalRevenueByShipmode = revenueByShipmode
+            .keyBy(map -> 1L)  // 使用常量key确保所有数据进入同一个key group
+            .process(new ProcessFunction<Map<String, Double>, Map<String, Double>>() {
+                private Map<String, Double> totals = new HashMap<>();
+
+                @Override
+                public void processElement(Map<String, Double> value, Context ctx, Collector<Map<String, Double>> out) throws Exception {
+                    // 更新每个运输方式的总和
+                    value.forEach((shipmode, revenue) -> 
+                        totals.merge(shipmode, revenue, Double::sum));
+                    
+                    // 输出当前的总和
+                    out.collect(new HashMap<>(totals));
+                }
+            });
+
         // 输出结果
-        revenueByShipmode.print();
+        totalRevenueByShipmode.print();
 
         env.execute("Stream Processing Job");
     }
