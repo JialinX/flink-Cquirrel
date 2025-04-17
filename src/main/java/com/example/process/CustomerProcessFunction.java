@@ -18,7 +18,11 @@ public class CustomerProcessFunction extends ProcessFunction<Customer, Long> {
 
     @Override
     public void processElement(Customer customer, Context context, Collector<Long> out) throws Exception {
+        System.out.println("CustomerProcessFunction处理数据: custkey=" + customer.getCCustkey() 
+            + ", mktsegment=" + customer.getCMktsegment());
+            
         if ("AUTOMOBILE".equals(customer.getCMktsegment())) {
+            System.out.println("发现AUTOMOBILE客户，输出custkey: " + customer.getCCustkey());
             out.collect(customer.getCCustkey());
         }
     }
