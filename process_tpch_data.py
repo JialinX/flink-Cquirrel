@@ -146,18 +146,21 @@ def process_tpch_data(input_file):
     # 执行查询
     query = """
     SELECT 
-        l_shipmode, l_extendedprice, l_discount
+        l_shipmode,
+        SUM(l_extendedprice * (1 - l_discount)) as revenue
     FROM 
         customer,
         orders,
         lineitem
     WHERE 
-        c_custkey = o_custkey
+            c_custkey = o_custkey
         AND l_orderkey = o_orderkey
-        AND c_mktsegment == 'AUTOMOBILE'
-        AND o_orderdate >= '1995-01-01' 
-        AND o_orderdate < '1996-01-01'
+        AND o_orderdate >= date('1995-01-01') 
+        AND o_orderdate < date('1996-01-01')
         AND l_shipmode in ('RAIL', 'AIR', 'TRUCK')
+        AND c_mktsegment = 'AUTOMOBILE'
+    GROUP BY
+        l_shipmode
     """
     
     result = pd.read_sql_query(query, conn)

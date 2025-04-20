@@ -13,7 +13,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import com.example.process.CustomerProcessFunction;
 import com.example.process.OrderProcessFunction;
 import com.example.process.LineitemProcessFunction;
+import com.example.process.ShipModeRevenueAggregationFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -103,8 +105,14 @@ public class StreamProcessingJob {
                 )
                 .process(new LineitemProcessFunction());
 
-        // 打印结果
-        lineitemResults.print();
+        // 使用ShipModeRevenueAggregationFunction处理lineitemResults数据流
+        DataStream<Tuple2<String, Double>> shipModeRevenueResults = lineitemResults
+                .keyBy(value -> value.f0) // 按shipMode分组
+                .process(new ShipModeRevenueAggregationFunction())
+                ;
+        
+        System.out.println("运输方式最终收入结果：");
+        shipModeRevenueResults.print();
 
         // 执行任务
         System.out.println("开始执行任务...");
