@@ -7,6 +7,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.java.tuple.Tuple2;
 import com.example.model.Order;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Order, Long> {
+public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Order, Tuple2<Long, String>> {
     // 使用 MapState 存储 custkey 到 orderkey 列表的映射
     private MapState<Long, List<Long>> custKeyToOrderKeysMap;
     // 使用 ValueState<Set<Long>> 存储所有见过的 custkey
@@ -38,7 +39,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
     }
 
     @Override
-    public void processElement1(Long custKey, Context context, Collector<Long> collector) throws Exception {
+    public void processElement1(Long custKey, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
         // 处理来自 filteredCustomerKeys 的数据流
         // System.out.println("OrderProcessFunction收到客户数据: custkey=" + custKey+ "    processElement1");
         
@@ -59,7 +60,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
         if (orderKeys != null && !orderKeys.isEmpty()) {
             // System.out.println("找到客户 " + custKey + " 的所有订单: " + orderKeys + "    processElement1");
             for (Long orderKey : orderKeys) {
-                collector.collect(orderKey);
+                collector.collect(new Tuple2<>(orderKey, "+"));
                 // System.out.println("已流出订单数据: orderKey=" + orderKey);
             }
         } else {
@@ -68,7 +69,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
     }
 
     @Override
-    public void processElement2(Order order, Context context, Collector<Long> collector) throws Exception {
+    public void processElement2(Order order, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
         // 处理来自订单数据流的数据
         // System.out.println("OrderProcessFunction收到订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey() + ", orderDate=" + order.getOOrderdate());
         
@@ -101,7 +102,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
             if (currentCustKeys != null && currentCustKeys.contains(order.getOCustkey())) {
                 // 如果 custkey 在集合中，流出这个 orderkey
                 // System.out.println("客户 " + order.getOCustkey() + " 在 custKeySet 中，流出订单: " + order.getOOrderkey());
-                collector.collect(order.getOOrderkey());
+                collector.collect(new Tuple2<>(order.getOOrderkey(), "+"));
                 // System.out.println("已流出订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey());
             } else {
                 // System.out.println("客户 " + order.getOCustkey() + " 不在 custKeySet 中，不流出订单");

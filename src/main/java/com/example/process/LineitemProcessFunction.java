@@ -9,6 +9,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple2;
 import com.example.model.LineItem;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, LineItem, Tuple4<String, Double, Double, String>> {
+public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Long, String>, LineItem, Tuple4<String, Double, Double, String>> {
     // 使用 MapState 存储 orderkey 到 (l_shipmode, l_extendedprice, l_discount) 的映射
     private MapState<Long, List<Tuple3<String, Double, Double>>> orderKeyToLineitemInfoMap;
     
@@ -36,9 +37,11 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
     }
 
     @Override
-    public void processElement1(Long orderKey, Context context, Collector<Tuple4<String, Double, Double, String>> collector) throws Exception {
+    public void processElement1(Tuple2<Long, String> tuple, Context context, Collector<Tuple4<String, Double, Double, String>> collector) throws Exception {
         // 处理来自 orderKeys 的数据流
         // System.out.println("LineitemProcessFunction收到订单数据: orderKey=" + orderKey);
+        Long orderKey = tuple.f0;
+        String type = tuple.f1;
         
         // 获取当前的 orderkey 集合
         Set<Long> currentOrderKeys = orderKeySet.value();
@@ -60,7 +63,7 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
             // System.out.println("找到订单 " + orderKey + " 的所有订单项信息: " + lineitemInfos.size() + " 条");
             for (Tuple3<String, Double, Double> info : lineitemInfos) {
                 // System.out.println("流出数据: 订单项信息: shipMode=" + info.f0 + ", extendedPrice=" + info.f1 + ", discount=" + info.f2);
-                collector.collect(new Tuple4<>(info.f0, info.f1, info.f2, "+"));
+                collector.collect(new Tuple4<>(info.f0, info.f1, info.f2, type));
             }
         } else {
             // 如果这个 orderkey 对应的列表为空，什么也不做

@@ -90,7 +90,7 @@ public class StreamProcessingJob {
                 .process(new CustomerProcessFunction());
 
         // 使用OrderProcessFunction处理两个数据流
-        DataStream<Long> orderKeys = filteredCustomerKeys
+        DataStream<Tuple2<Long, String>> orderKeys = filteredCustomerKeys
                 .connect(orders)
                 .keyBy(
                     custKey -> custKey,
@@ -102,7 +102,7 @@ public class StreamProcessingJob {
         DataStream<Tuple4<String, Double, Double, String>> lineitemResults = orderKeys
                 .connect(lineitems)
                 .keyBy(
-                    orderKey -> orderKey,
+                    tuple -> tuple.f0,
                     lineitem -> lineitem.getLOrderkey()
                 )
                 .process(new LineitemProcessFunction());
