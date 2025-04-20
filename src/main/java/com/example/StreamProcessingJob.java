@@ -16,6 +16,7 @@ import com.example.process.LineitemProcessFunction;
 import com.example.process.ShipModeRevenueAggregationFunction;
 import com.example.sink.ShipModeRevenueSink;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.time.Duration;
@@ -98,7 +99,7 @@ public class StreamProcessingJob {
                 .process(new OrderProcessFunction());
 
         // 使用LineitemProcessFunction处理两个数据流
-        DataStream<Tuple3<String, Double, Double>> lineitemResults = orderKeys
+        DataStream<Tuple4<String, Double, Double, String>> lineitemResults = orderKeys
                 .connect(lineitems)
                 .keyBy(
                     orderKey -> orderKey,

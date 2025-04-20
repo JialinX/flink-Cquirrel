@@ -2,7 +2,7 @@ package com.example.process;
 
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.state.MapState;
@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 聚合处理函数，用于计算每个 l_shipmode 的 SUM(l_extendedprice * (1 - l_discount)) 作为收入（revenue）
  */
-public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple3<String, Double, Double>, Tuple2<String, Double>> {
+public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple4<String, Double, Double, String>, Tuple2<String, Double>> {
     
     // 使用 MapState 存储每个 shipmode 的收入
     private MapState<String, Double> shipModeRevenueMap;
@@ -27,7 +27,7 @@ public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple3<S
     }
     
     @Override
-    public void processElement(Tuple3<String, Double, Double> value, Context context, Collector<Tuple2<String, Double>> collector) throws Exception {
+    public void processElement(Tuple4<String, Double, Double, String> value, Context context, Collector<Tuple2<String, Double>> collector) throws Exception {
         // 获取 shipmode、extendedPrice 和 discount
         String shipMode = value.f0;
         double extendedPrice = value.f1;

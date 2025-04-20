@@ -8,6 +8,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import com.example.model.LineItem;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, LineItem, Tuple3<String, Double, Double>> {
+public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, LineItem, Tuple4<String, Double, Double, String>> {
     // 使用 MapState 存储 orderkey 到 (l_shipmode, l_extendedprice, l_discount) 的映射
     private MapState<Long, List<Tuple3<String, Double, Double>>> orderKeyToLineitemInfoMap;
     
@@ -35,7 +36,7 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
     }
 
     @Override
-    public void processElement1(Long orderKey, Context context, Collector<Tuple3<String, Double, Double>> collector) throws Exception {
+    public void processElement1(Long orderKey, Context context, Collector<Tuple4<String, Double, Double, String>> collector) throws Exception {
         // 处理来自 orderKeys 的数据流
         // System.out.println("LineitemProcessFunction收到订单数据: orderKey=" + orderKey);
         
@@ -59,7 +60,7 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
             // System.out.println("找到订单 " + orderKey + " 的所有订单项信息: " + lineitemInfos.size() + " 条");
             for (Tuple3<String, Double, Double> info : lineitemInfos) {
                 // System.out.println("流出数据: 订单项信息: shipMode=" + info.f0 + ", extendedPrice=" + info.f1 + ", discount=" + info.f2);
-                collector.collect(info);
+                collector.collect(new Tuple4<>(info.f0, info.f1, info.f2, "+"));
             }
         } else {
             // 如果这个 orderkey 对应的列表为空，什么也不做
@@ -68,7 +69,7 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
     }
 
     @Override
-    public void processElement2(LineItem lineitem, Context context, Collector<Tuple3<String, Double, Double>> collector) throws Exception {
+    public void processElement2(LineItem lineitem, Context context, Collector<Tuple4<String, Double, Double, String>> collector) throws Exception {
         // 获取需要的字段
         Long orderKey = lineitem.getLOrderkey();
         String shipMode = lineitem.getLShipmode();
@@ -111,7 +112,7 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Long, 
         if (currentOrderKeys != null && currentOrderKeys.contains(orderKey)) {
             // 如果 orderkey 在集合中，流出数据
             // System.out.println("订单 " + orderKey + " 在 orderKeySet 中，流出数据: shipmode=" + shipMode + ", extendedPrice=" + extendedPrice + ", discount=" + discount);
-            collector.collect(info);
+            collector.collect(new Tuple4<>(info.f0, info.f1, info.f2, "+"));
         } else {
             // System.out.println("订单 " + orderKey + " 不在 orderKeySet 中，不流出数据");
         }
