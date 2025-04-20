@@ -2,13 +2,13 @@ package com.example;
 
 import com.example.model.Customer;
 import com.example.model.DataRecord;
+import com.example.model.Order;
 import com.example.serialization.LocalDateSerializer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
 import com.example.process.CustomerProcessFunction;
 import com.example.process.OrderProcessFunction;
 
@@ -37,18 +37,10 @@ public class StreamProcessingJob {
         DataStream<String> inputStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), "File Source");
         System.out.println("数据流创建完成");
 
-        // 打印原始数据并确保数据流被消费
-        System.out.println("开始处理数据流...");
-        // inputStream.map(line -> {
-        //     System.out.println("原始数据: " + line);
-        //     return line;
-        // }).print();  // 添加print()确保数据流被消费
-
         // 解析数据记录
         DataStream<DataRecord> dataRecords = inputStream
                 .map(line -> {
                     DataRecord record = DataRecord.fromString(line);
-                    // System.out.println("解析后的数据记录: type=" + record.getType() + ", tableType=" + record.getTableType());
                     return record;
                 });
 
@@ -63,14 +55,29 @@ public class StreamProcessingJob {
                     return customer;
                 });
 
+        // 过滤出订单数据并转换为Order对象
+        DataStream<Order> orders = dataRecords
+                .filter(record -> {
+                    boolean isOrder = record.getType().equals("+") && record.getTableType().equals("OR");
+                    return isOrder;
+                })
+                .map(record -> {
+                    Order order = Order.fromString(record.getData());
+                    return order;
+                });
+
         // 使用CustomerProcessFunction处理Customer对象
         DataStream<Long> filteredCustomerKeys = customers
                 .keyBy(Customer::getCCustkey)
                 .process(new CustomerProcessFunction());
 
-        // 使用OrderProcessFunction处理过滤后的客户ID
+        // 使用OrderProcessFunction处理两个数据流
         DataStream<Long> orderKeys = filteredCustomerKeys
-                .keyBy(key -> key)
+                .connect(orders)
+                .keyBy(
+                    custKey -> custKey,
+                    order -> order.getOCustkey()
+                )
                 .process(new OrderProcessFunction());
 
         // 打印结果
