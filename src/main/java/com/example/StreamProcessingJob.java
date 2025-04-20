@@ -14,6 +14,7 @@ import com.example.process.CustomerProcessFunction;
 import com.example.process.OrderProcessFunction;
 import com.example.process.LineitemProcessFunction;
 import com.example.process.ShipModeRevenueAggregationFunction;
+import com.example.sink.ShipModeRevenueSink;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -109,10 +110,18 @@ public class StreamProcessingJob {
         DataStream<Tuple2<String, Double>> shipModeRevenueResults = lineitemResults
                 .keyBy(value -> value.f0) // 按shipMode分组
                 .process(new ShipModeRevenueAggregationFunction())
-                ;
+                .keyBy(value -> value.f0) // 再次按shipMode分组
+                .reduce((value1, value2) -> {
+                    // 合并相同shipMode的结果，取最新的总收入
+                    return new Tuple2<>(value1.f0, value2.f1);
+                });
         
-        System.out.println("运输方式最终收入结果：");
-        shipModeRevenueResults.print();
+        // 使用自定义的 ShipModeRevenueSink 整合所有分区的结果
+        shipModeRevenueResults.addSink(new ShipModeRevenueSink()).setParallelism(1);
+        
+        // 打印中间结果，用于调试
+        // System.out.println("运输方式收入中间结果：");
+        // shipModeRevenueResults.print();
 
         // 执行任务
         System.out.println("开始执行任务...");

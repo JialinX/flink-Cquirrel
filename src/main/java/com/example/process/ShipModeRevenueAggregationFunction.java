@@ -54,6 +54,6 @@ public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple3<S
         collector.collect(new Tuple2<>(shipMode, currentRevenue));
         
         // 打印日志
-        System.out.println("ShipMode: " + shipMode + ", 当前收入: " + revenue + ", 总收入: " + currentRevenue);
+        // System.out.println("ShipMode: " + shipMode + ", 当前收入: " + revenue + ", 总收入: " + currentRevenue);
     }
 } 
