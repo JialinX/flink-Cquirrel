@@ -146,7 +146,7 @@ def process_tpch_data(input_file):
     # 执行查询
     query = """
     SELECT 
-        distinct(o_orderkey)
+        l_shipmode, l_extendedprice, l_discount
     FROM 
         customer,
         orders,
@@ -154,9 +154,10 @@ def process_tpch_data(input_file):
     WHERE 
         c_custkey = o_custkey
         AND l_orderkey = o_orderkey
+        AND c_mktsegment == 'AUTOMOBILE'
         AND o_orderdate >= '1995-01-01' 
         AND o_orderdate < '1996-01-01'
-        AND c_mktsegment == 'AUTOMOBILE'
+        AND l_shipmode in ('RAIL', 'AIR', 'TRUCK')
     """
     
     result = pd.read_sql_query(query, conn)

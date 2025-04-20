@@ -57,10 +57,10 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
         // 如果 custkey 在 custKeyToOrderKeysMap 中，则流出对应的所有 orderkey
         List<Long> orderKeys = custKeyToOrderKeysMap.get(custKey);
         if (orderKeys != null && !orderKeys.isEmpty()) {
-            System.out.println("找到客户 " + custKey + " 的所有订单: " + orderKeys + "    processElement1");
+            // System.out.println("找到客户 " + custKey + " 的所有订单: " + orderKeys + "    processElement1");
             for (Long orderKey : orderKeys) {
                 collector.collect(orderKey);
-                System.out.println("已流出订单数据: orderKey=" + orderKey);
+                // System.out.println("已流出订单数据: orderKey=" + orderKey);
             }
         } else {
             // System.out.println("客户 " + custKey + " 在 custKeyToOrderKeysMap 中不存在或订单列表为空" + "    processElement1");
@@ -102,7 +102,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
                 // 如果 custkey 在集合中，流出这个 orderkey
                 // System.out.println("客户 " + order.getOCustkey() + " 在 custKeySet 中，流出订单: " + order.getOOrderkey());
                 collector.collect(order.getOOrderkey());
-                System.out.println("已流出订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey());
+                // System.out.println("已流出订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey());
             } else {
                 // System.out.println("客户 " + order.getOCustkey() + " 不在 custKeySet 中，不流出订单");
             }

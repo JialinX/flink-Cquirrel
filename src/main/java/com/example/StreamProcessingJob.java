@@ -3,6 +3,7 @@ package com.example;
 import com.example.model.Customer;
 import com.example.model.DataRecord;
 import com.example.model.Order;
+import com.example.model.LineItem;
 import com.example.serialization.LocalDateSerializer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
@@ -11,6 +12,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import com.example.process.CustomerProcessFunction;
 import com.example.process.OrderProcessFunction;
+import com.example.process.LineitemProcessFunction;
+import org.apache.flink.api.java.tuple.Tuple3;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -66,6 +69,17 @@ public class StreamProcessingJob {
                     return order;
                 });
 
+        // 过滤出订单项数据并转换为LineItem对象
+        DataStream<LineItem> lineitems = dataRecords
+                .filter(record -> {
+                    boolean isLineitem = record.getType().equals("+") && record.getTableType().equals("LI");
+                    return isLineitem;
+                })
+                .map(record -> {
+                    LineItem lineitem = LineItem.fromString(record.getData());
+                    return lineitem;
+                });
+
         // 使用CustomerProcessFunction处理Customer对象
         DataStream<Long> filteredCustomerKeys = customers
                 .keyBy(Customer::getCCustkey)
@@ -80,8 +94,17 @@ public class StreamProcessingJob {
                 )
                 .process(new OrderProcessFunction());
 
+        // 使用LineitemProcessFunction处理两个数据流
+        DataStream<Tuple3<String, Double, Double>> lineitemResults = orderKeys
+                .connect(lineitems)
+                .keyBy(
+                    orderKey -> orderKey,
+                    lineitem -> lineitem.getLOrderkey()
+                )
+                .process(new LineitemProcessFunction());
+
         // 打印结果
-        orderKeys.print();
+        lineitemResults.print();
 
         // 执行任务
         System.out.println("开始执行任务...");
