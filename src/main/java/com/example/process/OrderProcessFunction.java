@@ -16,7 +16,7 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Order, Tuple2<Long, String>> {
+public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Long, String>, Order, Tuple2<Long, String>> {
     // 使用 MapState 存储 custkey 到 orderkey 列表的映射
     private MapState<Long, List<Long>> custKeyToOrderKeysMap;
     // 使用 ValueState<Set<Long>> 存储所有见过的 custkey
@@ -39,9 +39,11 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
     }
 
     @Override
-    public void processElement1(Long custKey, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
+    public void processElement1(Tuple2<Long, String> tuple, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
         // 处理来自 filteredCustomerKeys 的数据流
         // System.out.println("OrderProcessFunction收到客户数据: custkey=" + custKey+ "    processElement1");
+        Long custKey = tuple.f0;
+        String type = tuple.f1;
         
         // 获取当前的 custkey 集合
         Set<Long> currentCustKeys = custKeySet.value();
@@ -60,7 +62,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Long, Ord
         if (orderKeys != null && !orderKeys.isEmpty()) {
             // System.out.println("找到客户 " + custKey + " 的所有订单: " + orderKeys + "    processElement1");
             for (Long orderKey : orderKeys) {
-                collector.collect(new Tuple2<>(orderKey, "+"));
+                collector.collect(new Tuple2<>(orderKey, type));
                 // System.out.println("已流出订单数据: orderKey=" + orderKey);
             }
         } else {

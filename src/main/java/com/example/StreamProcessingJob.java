@@ -85,7 +85,7 @@ public class StreamProcessingJob {
                 });
 
         // 使用CustomerProcessFunction处理Customer对象
-        DataStream<Long> filteredCustomerKeys = customers
+        DataStream<Tuple2<Long, String>> filteredCustomerKeys = customers
                 .keyBy(Customer::getCCustkey)
                 .process(new CustomerProcessFunction());
 
@@ -93,7 +93,7 @@ public class StreamProcessingJob {
         DataStream<Tuple2<Long, String>> orderKeys = filteredCustomerKeys
                 .connect(orders)
                 .keyBy(
-                    custKey -> custKey,
+                    tuple -> tuple.f0,
                     order -> order.getOCustkey()
                 )
                 .process(new OrderProcessFunction());
