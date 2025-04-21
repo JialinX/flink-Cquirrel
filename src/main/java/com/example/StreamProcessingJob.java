@@ -18,6 +18,9 @@ import com.example.sink.ShipModeRevenueSink;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.functions.MapFunction;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -52,14 +55,14 @@ public class StreamProcessingJob {
                 });
 
         // 过滤出客户数据并转换为Customer对象
-        DataStream<Customer> customers = dataRecords
-                .filter(record -> {
-                    boolean isCustomer = record.getType().equals("+") && record.getTableType().equals("CU");
-                    return isCustomer;
-                })
-                .map(record -> {
-                    Customer customer = Customer.fromString(record.getData());
-                    return customer;
+        DataStream<Tuple2<Customer, String>> customers = dataRecords
+                .filter(record -> record.getTableType().equals("CU"))
+                .map(new MapFunction<DataRecord, Tuple2<Customer, String>>() {
+                    @Override
+                    public Tuple2<Customer, String> map(DataRecord record) throws Exception {
+                        Customer customer = Customer.fromString(record.getData());
+                        return new Tuple2<>(customer, record.getType());
+                    }
                 });
 
         // 过滤出订单数据并转换为Order对象
@@ -86,7 +89,7 @@ public class StreamProcessingJob {
 
         // 使用CustomerProcessFunction处理Customer对象
         DataStream<Tuple2<Long, String>> filteredCustomerKeys = customers
-                .keyBy(Customer::getCCustkey)
+                .keyBy(tuple -> tuple.f0.getCCustkey())
                 .process(new CustomerProcessFunction());
 
         // 使用OrderProcessFunction处理两个数据流
