@@ -67,10 +67,7 @@ public class StreamProcessingJob {
 
         // 过滤出订单数据并转换为Order对象
         DataStream<Tuple2<Order, String>> orders = dataRecords
-                .filter(record -> {
-                    boolean isOrder = record.getType().equals("+") && record.getTableType().equals("OR");
-                    return isOrder;
-                })
+                .filter(record -> record.getTableType().equals("OR"))
                 .map(new MapFunction<DataRecord, Tuple2<Order, String>>() {
                     @Override
                     public Tuple2<Order, String> map(DataRecord record) throws Exception {
@@ -81,10 +78,7 @@ public class StreamProcessingJob {
 
         // 过滤出订单项数据并转换为LineItem对象
         DataStream<Tuple2<LineItem, String>> lineitems = dataRecords
-                .filter(record -> {
-                    boolean isLineitem = record.getType().equals("+") && record.getTableType().equals("LI");
-                    return isLineitem;
-                })
+                .filter(record -> record.getTableType().equals("LI"))
                 .map(new MapFunction<DataRecord, Tuple2<LineItem, String>>() {
                     @Override
                     public Tuple2<LineItem, String> map(DataRecord record) throws Exception {
