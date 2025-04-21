@@ -16,7 +16,11 @@ import com.example.process.LineitemProcessFunction;
 import com.example.process.ShipModeRevenueAggregationFunction;
 import com.example.sink.ShipModeRevenueSink;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.functions.MapFunction;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -51,58 +55,64 @@ public class StreamProcessingJob {
                 });
 
         // 过滤出客户数据并转换为Customer对象
-        DataStream<Customer> customers = dataRecords
-                .filter(record -> {
-                    boolean isCustomer = record.getType().equals("+") && record.getTableType().equals("CU");
-                    return isCustomer;
-                })
-                .map(record -> {
-                    Customer customer = Customer.fromString(record.getData());
-                    return customer;
+        DataStream<Tuple2<Customer, String>> customers = dataRecords
+                .filter(record -> record.getTableType().equals("CU"))
+                .map(new MapFunction<DataRecord, Tuple2<Customer, String>>() {
+                    @Override
+                    public Tuple2<Customer, String> map(DataRecord record) throws Exception {
+                        Customer customer = Customer.fromString(record.getData());
+                        return new Tuple2<>(customer, record.getType());
+                    }
                 });
 
         // 过滤出订单数据并转换为Order对象
-        DataStream<Order> orders = dataRecords
+        DataStream<Tuple2<Order, String>> orders = dataRecords
                 .filter(record -> {
                     boolean isOrder = record.getType().equals("+") && record.getTableType().equals("OR");
                     return isOrder;
                 })
-                .map(record -> {
-                    Order order = Order.fromString(record.getData());
-                    return order;
+                .map(new MapFunction<DataRecord, Tuple2<Order, String>>() {
+                    @Override
+                    public Tuple2<Order, String> map(DataRecord record) throws Exception {
+                        Order order = Order.fromString(record.getData());
+                        return new Tuple2<>(order, record.getType());
+                    }
                 });
 
         // 过滤出订单项数据并转换为LineItem对象
-        DataStream<LineItem> lineitems = dataRecords
+        DataStream<Tuple2<LineItem, String>> lineitems = dataRecords
                 .filter(record -> {
                     boolean isLineitem = record.getType().equals("+") && record.getTableType().equals("LI");
                     return isLineitem;
                 })
-                .map(record -> {
-                    LineItem lineitem = LineItem.fromString(record.getData());
-                    return lineitem;
+                .map(new MapFunction<DataRecord, Tuple2<LineItem, String>>() {
+                    @Override
+                    public Tuple2<LineItem, String> map(DataRecord record) throws Exception {
+                        LineItem lineitem = LineItem.fromString(record.getData());
+                        return new Tuple2<>(lineitem, record.getType());
+                    }
                 });
 
         // 使用CustomerProcessFunction处理Customer对象
-        DataStream<Long> filteredCustomerKeys = customers
-                .keyBy(Customer::getCCustkey)
+        DataStream<Tuple2<Long, String>> filteredCustomerKeys = customers
+                .keyBy(tuple -> tuple.f0.getCCustkey())
                 .process(new CustomerProcessFunction());
 
         // 使用OrderProcessFunction处理两个数据流
-        DataStream<Long> orderKeys = filteredCustomerKeys
+        DataStream<Tuple2<Long, String>> orderKeys = filteredCustomerKeys
                 .connect(orders)
                 .keyBy(
-                    custKey -> custKey,
-                    order -> order.getOCustkey()
+                    tuple -> tuple.f0,
+                    order -> order.f0.getOCustkey()
                 )
                 .process(new OrderProcessFunction());
 
         // 使用LineitemProcessFunction处理两个数据流
-        DataStream<Tuple3<String, Double, Double>> lineitemResults = orderKeys
+        DataStream<Tuple4<String, Double, Double, String>> lineitemResults = orderKeys
                 .connect(lineitems)
                 .keyBy(
-                    orderKey -> orderKey,
-                    lineitem -> lineitem.getLOrderkey()
+                    tuple -> tuple.f0,
+                    lineitem -> lineitem.f0.getLOrderkey()
                 )
                 .process(new LineitemProcessFunction());
 
