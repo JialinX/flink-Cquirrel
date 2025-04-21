@@ -75,3 +75,5 @@ build/
 
 
 *.db
+output.txt
+log.txt

@@ -40,8 +40,6 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
 
     @Override
     public void processElement1(Tuple2<Long, String> tuple, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
-        // 处理来自 filteredCustomerKeys 的数据流
-        // System.out.println("OrderProcessFunction收到客户数据: custkey=" + custKey+ "    processElement1");
         Long custKey = tuple.f0;
         String type = tuple.f1;
         
@@ -53,28 +51,20 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
         
         // 检查 custkey 是否已存在，如果不存在则添加
         if (currentCustKeys.add(custKey)) {
-            // System.out.println("新客户ID " + custKey + " 加入 custkey 集合" + "    processElement1");
             custKeySet.update(currentCustKeys);
         }
         
         // 如果 custkey 在 custKeyToOrderKeysMap 中，则流出对应的所有 orderkey
         List<Long> orderKeys = custKeyToOrderKeysMap.get(custKey);
         if (orderKeys != null && !orderKeys.isEmpty()) {
-            // System.out.println("找到客户 " + custKey + " 的所有订单: " + orderKeys + "    processElement1");
             for (Long orderKey : orderKeys) {
                 collector.collect(new Tuple2<>(orderKey, type));
-                // System.out.println("已流出订单数据: orderKey=" + orderKey);
             }
-        } else {
-            // System.out.println("客户 " + custKey + " 在 custKeyToOrderKeysMap 中不存在或订单列表为空" + "    processElement1");
         }
     }
 
     @Override
     public void processElement2(Tuple2<Order, String> orderTuple, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
-        // 处理来自订单数据流的数据
-        // System.out.println("OrderProcessFunction收到订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey() + ", orderDate=" + order.getOOrderdate());
-        
         Order order = orderTuple.f0;
         String type = orderTuple.f1;
         
@@ -83,38 +73,22 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
         
         // 检查订单日期是否在指定范围内
         if (orderDate.isAfter(START_DATE.minusDays(1)) && orderDate.isBefore(END_DATE)) {
-            // System.out.println("订单日期在指定范围内: " + order.getOOrderdate());
-            
             // 第一步：更新 custkey -> orderkey 映射
             List<Long> orderKeys = custKeyToOrderKeysMap.get(order.getOCustkey());
             if (orderKeys == null) {
-                // 如果 custkey 不存在，创建新的映射
-                // System.out.println("客户 " + order.getOCustkey() + " 不在映射中，创建新的映射");
                 orderKeys = new ArrayList<>();
                 orderKeys.add(order.getOOrderkey());
                 custKeyToOrderKeysMap.put(order.getOCustkey(), orderKeys);
-                // System.out.println("新创建的订单列表: " + orderKeys);
             } else {
-                // 如果 custkey 已存在，更新 orderkey 列表
-                // System.out.println("更新客户 " + order.getOCustkey() + " 的订单列表");
                 orderKeys.add(order.getOOrderkey());
                 custKeyToOrderKeysMap.put(order.getOCustkey(), orderKeys);
-                // System.out.println("更新后的订单列表: " + orderKeys);
             }
             
             // 第二步：检查 custkey 是否在 custKeySet 中
             Set<Long> currentCustKeys = custKeySet.value();
             if (currentCustKeys != null && currentCustKeys.contains(order.getOCustkey())) {
-                // 如果 custkey 在集合中，流出这个 orderkey
-                // System.out.println("客户 " + order.getOCustkey() + " 在 custKeySet 中，流出订单: " + order.getOOrderkey());
                 collector.collect(new Tuple2<>(order.getOOrderkey(), type));
-                // System.out.println("已流出订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey());
-            } else {
-                // System.out.println("客户 " + order.getOCustkey() + " 不在 custKeySet 中，不流出订单");
             }
-        } else {
-            // 订单日期不在指定范围内，忽略
-            // System.out.println("订单日期不在指定范围内，忽略: " + order.getOOrderdate());
         }
     }
 } 
