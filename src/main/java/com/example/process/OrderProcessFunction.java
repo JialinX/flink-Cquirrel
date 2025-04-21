@@ -16,7 +16,7 @@ import java.util.Set;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Long, String>, Order, Tuple2<Long, String>> {
+public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Long, String>, Tuple2<Order, String>, Tuple2<Long, String>> {
     // 使用 MapState 存储 custkey 到 orderkey 列表的映射
     private MapState<Long, List<Long>> custKeyToOrderKeysMap;
     // 使用 ValueState<Set<Long>> 存储所有见过的 custkey
@@ -71,9 +71,12 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
     }
 
     @Override
-    public void processElement2(Order order, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
+    public void processElement2(Tuple2<Order, String> orderTuple, Context context, Collector<Tuple2<Long, String>> collector) throws Exception {
         // 处理来自订单数据流的数据
         // System.out.println("OrderProcessFunction收到订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey() + ", orderDate=" + order.getOOrderdate());
+        
+        Order order = orderTuple.f0;
+        String type = orderTuple.f1;
         
         // 获取订单日期
         LocalDate orderDate = order.getOOrderdate();
@@ -104,7 +107,7 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
             if (currentCustKeys != null && currentCustKeys.contains(order.getOCustkey())) {
                 // 如果 custkey 在集合中，流出这个 orderkey
                 // System.out.println("客户 " + order.getOCustkey() + " 在 custKeySet 中，流出订单: " + order.getOOrderkey());
-                collector.collect(new Tuple2<>(order.getOOrderkey(), "+"));
+                collector.collect(new Tuple2<>(order.getOOrderkey(), type));
                 // System.out.println("已流出订单数据: orderKey=" + order.getOOrderkey() + ", custKey=" + order.getOCustkey());
             } else {
                 // System.out.println("客户 " + order.getOCustkey() + " 不在 custKeySet 中，不流出订单");

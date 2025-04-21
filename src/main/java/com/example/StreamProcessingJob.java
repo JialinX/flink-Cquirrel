@@ -66,25 +66,31 @@ public class StreamProcessingJob {
                 });
 
         // 过滤出订单数据并转换为Order对象
-        DataStream<Order> orders = dataRecords
+        DataStream<Tuple2<Order, String>> orders = dataRecords
                 .filter(record -> {
                     boolean isOrder = record.getType().equals("+") && record.getTableType().equals("OR");
                     return isOrder;
                 })
-                .map(record -> {
-                    Order order = Order.fromString(record.getData());
-                    return order;
+                .map(new MapFunction<DataRecord, Tuple2<Order, String>>() {
+                    @Override
+                    public Tuple2<Order, String> map(DataRecord record) throws Exception {
+                        Order order = Order.fromString(record.getData());
+                        return new Tuple2<>(order, record.getType());
+                    }
                 });
 
         // 过滤出订单项数据并转换为LineItem对象
-        DataStream<LineItem> lineitems = dataRecords
+        DataStream<Tuple2<LineItem, String>> lineitems = dataRecords
                 .filter(record -> {
                     boolean isLineitem = record.getType().equals("+") && record.getTableType().equals("LI");
                     return isLineitem;
                 })
-                .map(record -> {
-                    LineItem lineitem = LineItem.fromString(record.getData());
-                    return lineitem;
+                .map(new MapFunction<DataRecord, Tuple2<LineItem, String>>() {
+                    @Override
+                    public Tuple2<LineItem, String> map(DataRecord record) throws Exception {
+                        LineItem lineitem = LineItem.fromString(record.getData());
+                        return new Tuple2<>(lineitem, record.getType());
+                    }
                 });
 
         // 使用CustomerProcessFunction处理Customer对象
@@ -97,7 +103,7 @@ public class StreamProcessingJob {
                 .connect(orders)
                 .keyBy(
                     tuple -> tuple.f0,
-                    order -> order.getOCustkey()
+                    order -> order.f0.getOCustkey()
                 )
                 .process(new OrderProcessFunction());
 
@@ -106,7 +112,7 @@ public class StreamProcessingJob {
                 .connect(lineitems)
                 .keyBy(
                     tuple -> tuple.f0,
-                    lineitem -> lineitem.getLOrderkey()
+                    lineitem -> lineitem.f0.getLOrderkey()
                 )
                 .process(new LineitemProcessFunction());
 
