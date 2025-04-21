@@ -47,14 +47,20 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Tuple2
             currentOrderKeys = new HashSet<>();
         }
         
-        // 检查 orderkey 是否已存在，如果不存在则添加
-        if (currentOrderKeys.add(orderKey)) {
-            orderKeySet.update(currentOrderKeys);
+        if (type.equals("+")) {
+            // 如果是添加操作，检查 orderkey 是否已存在，如果不存在则添加
+            if (currentOrderKeys.add(orderKey)) {
+                orderKeySet.update(currentOrderKeys);
+            }
+        } else if (type.equals("-")) {
+            // 如果是删除操作，检查 orderkey 是否存在，如果存在则删除
+            if (currentOrderKeys.remove(orderKey)) {
+                orderKeySet.update(currentOrderKeys);
+            }
         }
         
-        // 获取当前 orderkey 对应的 lineitem 信息列表
+        // 如果 orderkey 在 orderKeyToLineitemInfoMap 中，则流出对应的所有 lineitem 信息
         List<Tuple3<String, Double, Double>> lineitemInfos = orderKeyToLineitemInfoMap.get(orderKey);
-        
         if (lineitemInfos != null && !lineitemInfos.isEmpty()) {
             for (Tuple3<String, Double, Double> info : lineitemInfos) {
                 collector.collect(new Tuple4<>(info.f0, info.f1, info.f2, type));
@@ -78,20 +84,29 @@ public class LineitemProcessFunction extends KeyedCoProcessFunction<Long, Tuple2
             return;
         }
         
-        // 第一步：将数据存入 orderKeyToLineitemInfoMap
         // 创建 Tuple3 对象
         Tuple3<String, Double, Double> info = new Tuple3<>(shipMode, extendedPrice, discount);
         
         // 获取当前 orderkey 对应的 lineitem 信息列表
         List<Tuple3<String, Double, Double>> lineitemInfos = orderKeyToLineitemInfoMap.get(orderKey);
         
-        if (lineitemInfos == null) {
-            lineitemInfos = new ArrayList<>();
+        if (type.equals("+")) {
+            // 如果是添加操作
+            if (lineitemInfos == null) {
+                lineitemInfos = new ArrayList<>();
+            }
             lineitemInfos.add(info);
             orderKeyToLineitemInfoMap.put(orderKey, lineitemInfos);
-        } else {
-            lineitemInfos.add(info);
-            orderKeyToLineitemInfoMap.put(orderKey, lineitemInfos);
+        } else if (type.equals("-")) {
+            // 如果是删除操作
+            if (lineitemInfos != null) {
+                lineitemInfos.remove(info);
+                if (lineitemInfos.isEmpty()) {
+                    orderKeyToLineitemInfoMap.remove(orderKey);
+                } else {
+                    orderKeyToLineitemInfoMap.put(orderKey, lineitemInfos);
+                }
+            }
         }
         
         // 第二步：判断 orderkey 是否在 orderKeySet 中

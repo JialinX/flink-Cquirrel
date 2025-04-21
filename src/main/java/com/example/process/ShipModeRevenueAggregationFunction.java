@@ -28,10 +28,11 @@ public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple4<S
     
     @Override
     public void processElement(Tuple4<String, Double, Double, String> value, Context context, Collector<Tuple2<String, Double>> collector) throws Exception {
-        // 获取 shipmode、extendedPrice 和 discount
+        // 获取 shipmode、extendedPrice、discount 和 type
         String shipMode = value.f0;
         double extendedPrice = value.f1;
         double discount = value.f2;
+        String type = value.f3;
         
         // 计算收入：extendedPrice * (1 - discount)
         double revenue = extendedPrice * (1 - discount);
@@ -44,16 +45,17 @@ public class ShipModeRevenueAggregationFunction extends ProcessFunction<Tuple4<S
             currentRevenue = 0.0;
         }
         
-        // 累加收入
-        currentRevenue += revenue;
+        // 根据 type 决定是增加还是减少收入
+        if (type.equals("+")) {
+            currentRevenue += revenue;
+        } else if (type.equals("-")) {
+            currentRevenue -= revenue;
+        }
         
         // 更新 shipmode 的收入
         shipModeRevenueMap.put(shipMode, currentRevenue);
         
         // 输出当前 shipmode 的总收入
         collector.collect(new Tuple2<>(shipMode, currentRevenue));
-        
-        // 打印日志
-        // System.out.println("ShipMode: " + shipMode + ", 当前收入: " + revenue + ", 总收入: " + currentRevenue);
     }
 } 

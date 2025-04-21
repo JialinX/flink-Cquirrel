@@ -49,9 +49,16 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
             currentCustKeys = new HashSet<>();
         }
         
-        // 检查 custkey 是否已存在，如果不存在则添加
-        if (currentCustKeys.add(custKey)) {
-            custKeySet.update(currentCustKeys);
+        if (type.equals("+")) {
+            // 如果是添加操作，检查 custkey 是否已存在，如果不存在则添加
+            if (currentCustKeys.add(custKey)) {
+                custKeySet.update(currentCustKeys);
+            }
+        } else if (type.equals("-")) {
+            // 如果是删除操作，检查 custkey 是否存在，如果存在则删除
+            if (currentCustKeys.remove(custKey)) {
+                custKeySet.update(currentCustKeys);
+            }
         }
         
         // 如果 custkey 在 custKeyToOrderKeysMap 中，则流出对应的所有 orderkey
@@ -68,26 +75,41 @@ public class OrderProcessFunction extends KeyedCoProcessFunction<Long, Tuple2<Lo
         Order order = orderTuple.f0;
         String type = orderTuple.f1;
         
+        // 定义 custkey 和 orderkey 变量
+        Long custkey = order.getOCustkey();
+        Long orderkey = order.getOOrderkey();
+        
         // 获取订单日期
         LocalDate orderDate = order.getOOrderdate();
         
         // 检查订单日期是否在指定范围内
         if (orderDate.isAfter(START_DATE.minusDays(1)) && orderDate.isBefore(END_DATE)) {
             // 第一步：更新 custkey -> orderkey 映射
-            List<Long> orderKeys = custKeyToOrderKeysMap.get(order.getOCustkey());
-            if (orderKeys == null) {
-                orderKeys = new ArrayList<>();
-                orderKeys.add(order.getOOrderkey());
-                custKeyToOrderKeysMap.put(order.getOCustkey(), orderKeys);
-            } else {
-                orderKeys.add(order.getOOrderkey());
-                custKeyToOrderKeysMap.put(order.getOCustkey(), orderKeys);
+            List<Long> orderKeys = custKeyToOrderKeysMap.get(custkey);
+            
+            if (type.equals("+")) {
+                // 如果是添加操作
+                if (orderKeys == null) {
+                    orderKeys = new ArrayList<>();
+                }
+                orderKeys.add(orderkey);
+                custKeyToOrderKeysMap.put(custkey, orderKeys);
+            } else if (type.equals("-")) {
+                // 如果是删除操作
+                if (orderKeys != null) {
+                    orderKeys.remove(orderkey);
+                    if (orderKeys.isEmpty()) {
+                        custKeyToOrderKeysMap.remove(custkey);
+                    } else {
+                        custKeyToOrderKeysMap.put(custkey, orderKeys);
+                    }
+                }
             }
             
             // 第二步：检查 custkey 是否在 custKeySet 中
             Set<Long> currentCustKeys = custKeySet.value();
-            if (currentCustKeys != null && currentCustKeys.contains(order.getOCustkey())) {
-                collector.collect(new Tuple2<>(order.getOOrderkey(), type));
+            if (currentCustKeys != null && currentCustKeys.contains(custkey)) {
+                collector.collect(new Tuple2<>(orderkey, type));
             }
         }
     }

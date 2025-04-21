@@ -10,9 +10,6 @@ public class CustomerProcessFunction extends KeyedProcessFunction<Long, Tuple2<C
     public void processElement(Tuple2<Customer, String> customerTuple, Context context, Collector<Tuple2<Long, String>> out) throws Exception {
         Customer customer = customerTuple.f0;
         String type = customerTuple.f1;
-        
-        // System.out.println("CustomerProcessFunction处理数据: custkey=" + customer.getCCustkey() 
-            // + ", mktsegment=" + customer.getCMktsegment());
             
         if ("AUTOMOBILE".equals(customer.getCMktsegment())) {
             // System.out.println("发现AUTOMOBILE客户，输出custkey: " + customer.getCCustkey());
