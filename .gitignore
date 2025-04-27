@@ -43,6 +43,7 @@ Thumbs.db
 
 # Input data files
 *.csv
+*.tbl
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
