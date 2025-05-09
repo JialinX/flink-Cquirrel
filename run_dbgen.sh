@@ -20,7 +20,7 @@ rm -f *.tbl
 
 
 # 修改config_all.ini中的ScaleFactor
-sed -i '' "s/ScaleFactor = .*/ScaleFactor = $size/" config_all.ini
+# sed -i '' "s/ScaleFactor = .*/ScaleFactor = $size/" config_all.ini
 
 # 运行DataGenerator.py
 python DataGenerator.py
