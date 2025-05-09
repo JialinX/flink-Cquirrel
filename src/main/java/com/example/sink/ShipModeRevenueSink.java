@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 自定义的 Sink 函数，用于整合所有分区的结果，最终得到3个 shipmode 的最终结果
+ * Custom Sink function to integrate results from all partitions and get final results for 3 ship modes
  */
 public class ShipModeRevenueSink extends RichSinkFunction<Tuple2<String, Double>> {
     
@@ -24,20 +24,20 @@ public class ShipModeRevenueSink extends RichSinkFunction<Tuple2<String, Double>
         String shipMode = value.f0;
         Double revenue = value.f1;
         
-        // 更新或添加运输方式的收入
+        // Update or add shipping mode revenue
         shipModeRevenues.put(shipMode, revenue);
     }
     
     @Override
     public void close() throws Exception {
-        // 在关闭时打印最终结果
-        System.out.println("\n最终运输方式收入结果：");
+        // Print final results when closing
+        System.out.println("\nFinal Shipping Mode Revenue Results:");
         System.out.println("----------------------------------------");
         shipModeRevenues.forEach((mode, rev) -> 
-            System.out.printf("运输方式: %s, 总收入: %.2f%n", mode, rev));
+            System.out.printf("Shipping Mode: %s, Total Revenue: %.2f%n", mode, rev));
         System.out.println("----------------------------------------\n");
         
-        // 清理资源
+        // Clean up resources
         shipModeRevenues.clear();
     }
 } 

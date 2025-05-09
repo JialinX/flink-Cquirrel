@@ -27,34 +27,34 @@ import java.time.LocalDate;
 
 public class StreamProcessingJob {
     public static void main(String[] args) throws Exception {
-        // 设置流执行环境
+        // Set up streaming execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // 注册LocalDate序列化器
-        System.out.println("正在注册LocalDate序列化器...");
+        // Register LocalDate serializer
+        System.out.println("Registering LocalDate serializer...");
         env.getConfig().registerTypeWithKryoSerializer(LocalDate.class, LocalDateSerializer.class);
-        System.out.println("LocalDate序列化器注册完成");
+        System.out.println("LocalDate serializer registration completed");
 
-        // 创建文件源
-        System.out.println("正在创建文件源...");
+        // Create file source
+        System.out.println("Creating file source...");
         FileSource<String> source = FileSource
-                .forRecordStreamFormat(new TextLineInputFormat(), new org.apache.flink.core.fs.Path("input_data_all.csv"))
+                .forRecordStreamFormat(new TextLineInputFormat(), new org.apache.flink.core.fs.Path("file://Users/jialinxie/Desktop/flink/input_data_all.csv"))
                 .build();
-        System.out.println("文件源创建完成");
+        System.out.println("File source creation completed");
 
-        // 创建数据流
-        System.out.println("正在创建数据流...");
+        // Create data stream
+        System.out.println("Creating data stream...");
         DataStream<String> inputStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), "File Source");
-        System.out.println("数据流创建完成");
+        System.out.println("Data stream creation completed");
 
-        // 解析数据记录
+        // Parse data records
         DataStream<DataRecord> dataRecords = inputStream
                 .map(line -> {
                     DataRecord record = DataRecord.fromString(line);
                     return record;
                 });
 
-        // 过滤出客户数据并转换为Customer对象
+        // Filter customer data and convert to Customer objects
         DataStream<Tuple2<Customer, String>> customers = dataRecords
                 .filter(record -> record.getTableType().equals("CU"))
                 .map(new MapFunction<DataRecord, Tuple2<Customer, String>>() {
@@ -65,7 +65,7 @@ public class StreamProcessingJob {
                     }
                 });
 
-        // 过滤出订单数据并转换为Order对象
+        // Filter order data and convert to Order objects
         DataStream<Tuple2<Order, String>> orders = dataRecords
                 .filter(record -> record.getTableType().equals("OR"))
                 .map(new MapFunction<DataRecord, Tuple2<Order, String>>() {
@@ -76,7 +76,7 @@ public class StreamProcessingJob {
                     }
                 });
 
-        // 过滤出订单项数据并转换为LineItem对象
+        // Filter line item data and convert to LineItem objects
         DataStream<Tuple2<LineItem, String>> lineitems = dataRecords
                 .filter(record -> record.getTableType().equals("LI"))
                 .map(new MapFunction<DataRecord, Tuple2<LineItem, String>>() {
@@ -87,12 +87,12 @@ public class StreamProcessingJob {
                     }
                 });
 
-        // 使用CustomerProcessFunction处理Customer对象
+        // Process Customer objects using CustomerProcessFunction
         DataStream<Tuple2<Long, String>> filteredCustomerKeys = customers
                 .keyBy(tuple -> tuple.f0.getCCustkey())
                 .process(new CustomerProcessFunction());
 
-        // 使用OrderProcessFunction处理两个数据流
+        // Process two data streams using OrderProcessFunction
         DataStream<Tuple2<Long, String>> orderKeys = filteredCustomerKeys
                 .connect(orders)
                 .keyBy(
@@ -101,7 +101,7 @@ public class StreamProcessingJob {
                 )
                 .process(new OrderProcessFunction());
 
-        // 使用LineitemProcessFunction处理两个数据流
+        // Process two data streams using LineitemProcessFunction
         DataStream<Tuple4<String, Double, Double, String>> lineitemResults = orderKeys
                 .connect(lineitems)
                 .keyBy(
@@ -110,26 +110,26 @@ public class StreamProcessingJob {
                 )
                 .process(new LineitemProcessFunction());
 
-        // 使用ShipModeRevenueAggregationFunction处理lineitemResults数据流
+        // Process lineitemResults using ShipModeRevenueAggregationFunction
         DataStream<Tuple2<String, Double>> shipModeRevenueResults = lineitemResults
-                .keyBy(value -> value.f0) // 按shipMode分组
+                .keyBy(value -> value.f0) // Group by shipMode
                 .process(new ShipModeRevenueAggregationFunction())
-                .keyBy(value -> value.f0) // 再次按shipMode分组
+                .keyBy(value -> value.f0) // Group by shipMode again
                 .reduce((value1, value2) -> {
-                    // 合并相同shipMode的结果，取最新的总收入
+                    // Merge results with same shipMode, take the latest total revenue
                     return new Tuple2<>(value1.f0, value2.f1);
                 });
         
-        // 使用自定义的 ShipModeRevenueSink 整合所有分区的结果
+        // Use custom ShipModeRevenueSink to integrate results from all partitions
         shipModeRevenueResults.addSink(new ShipModeRevenueSink()).setParallelism(1);
         
-        // 打印中间结果，用于调试
-        // System.out.println("运输方式收入中间结果：");
+        // Print intermediate results for debugging
+        // System.out.println("Transport mode revenue intermediate results:");
         // shipModeRevenueResults.print();
 
-        // 执行任务
-        System.out.println("开始执行任务...");
+        // Execute the job
+        System.out.println("Starting job execution...");
         env.execute("Stream Processing Job");
-        System.out.println("任务执行完成");
+        System.out.println("Job execution completed");
     }
 } 
